@@ -21,7 +21,7 @@ class Net:
 
     def init(self):
         self.active_slots = [[], [], []]  # free, black, white
-        
+    '''
         active_slots[0] = new
         Vector. < Slot > (); // free
         active_slots[1] = new
@@ -57,6 +57,7 @@ class Net:
         for each(var item: Slot in all_slots) {
             item.init();
         }
+        '''
 
 class Game:
     def __init__(self, app):
