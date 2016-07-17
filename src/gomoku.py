@@ -230,7 +230,7 @@ class Game:
     def check_win(self, c):
         for s in self.app.net.active_slots[c]:
             if s.r == 5:
-                mes = self.name_c[c] + " :: win!!!"
+                self.mes = self.name_c[c] + " :: win!!!"
                 return True
         return False
 
@@ -244,15 +244,15 @@ class Game:
             return False
 
     def calc_point(self, c):
-        ret = []
+
         self.mes = self.name_c[c] + " :: auto :: "
 
         ret = self.find_slot_4(c)
         if len(ret) == 0:
             ret = self.find_slot_4(3 - c)
         if len(ret) == 0:
-
             ret = self.find_point_x(c, 2, 1)
+
         if len(ret) == 0:
             ret = self.find_point_x(3 - c, 2, 1)
         if len(ret) == 0:
