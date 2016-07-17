@@ -8,56 +8,128 @@ from kivy.uix.widget import Widget
 from kivy.uix.label import Label
 from kivy.uix.button import Button
 from kivy.uix.dropdown import DropDown
-from kivy.graphics import Color, Rectangle, Line
+from kivy.graphics import Color, Rectangle, Line, Ellipse
 
 from kivy.core.window import Window
 
+import random
+
 Window.clearcolor = (0.85, 0.85, 0.85, 0.5)
 Window.borderless = True
+
+class Point:
+    def __init__(self, net, x, y):
+        self.net = net
+        self.x = x
+        self.y = y
+        self.slots = []
+        self.r = [0, 0, 0]
+        self.s = 0
+
+    def is_valid_scp(self, d):
+        x = self.x - 7
+        y = self.y - 7
+    # 0 - vert, 1 - horiz, 2 - up, 3 - down
+        if d == 0 and y > -6 and y < 6:
+            return True
+        if d == 1 and x > -6 and x < 6:
+            return True
+        if d == 2 and (x > -6 and y < 6) and (x < 6 and y > -6):
+            return True
+        if d == 3 and (x > -6 and y > -6) and (x < 6 and y < 6):
+            return True
+        return False
+
+    def add_slot(self, s):
+        self.slots.append(s)
+        self.r[s.s] += 1
+
+    def to_string(self):
+        return "x:{0},y:{1};".format(self.x, self.y)
+
+class Slot:
+    def __init__(self, net, scp, d):
+        self.net = net
+        self.scp = scp
+        self.d = d
+        self.points = [None] * 5
+        self.r = 0
+        self.s = 0
+
+    def init(self):
+        #print "Init Slot: d: {0}, scp: {1}".format(self.d, self.scp.to_string())
+        self.points[2] = self.net.get_point(self.scp.x, self.scp.y)
+
+        if self.d == 0:
+            self.points[0] = self.net.get_point(self.scp.x, self.scp.y - 2)
+            self.points[1] = self.net.get_point(self.scp.x, self.scp.y - 1)
+            self.points[3] = self.net.get_point(self.scp.x, self.scp.y + 1)
+            self.points[4] = self.net.get_point(self.scp.x, self.scp.y + 2)
+        elif self.d == 1:
+            self.points[0] = self.net.get_point(self.scp.x - 2, self.scp.y)
+            self.points[1] = self.net.get_point(self.scp.x - 1, self.scp.y)
+            self.points[3] = self.net.get_point(self.scp.x + 1, self.scp.y)
+            self.points[4] = self.net.get_point(self.scp.x + 2, self.scp.y)
+        elif self.d == 2:
+            self.points[0] = self.net.get_point(self.scp.x - 2, self.scp.y - 2)
+            self.points[1] = self.net.get_point(self.scp.x - 1, self.scp.y - 1)
+            self.points[3] = self.net.get_point(self.scp.x + 1, self.scp.y + 1)
+            self.points[4] = self.net.get_point(self.scp.x + 2, self.scp.y + 2)
+        elif self.d == 3:
+            self.points[0] = self.net.get_point(self.scp.x - 2, self.scp.y + 2)
+            self.points[1] = self.net.get_point(self.scp.x - 1, self.scp.y + 1)
+            self.points[3] = self.net.get_point(self.scp.x + 1, self.scp.y - 1)
+            self.points[4] = self.net.get_point(self.scp.x + 2, self.scp.y - 2)
+
+        for i in range(0, 5):
+            self.points[i].add_slot(self)
 
 class Net:
     def __init__(self):
         pass
 
     def init(self):
+        self.all_slots = []
         self.active_slots = [[], [], []]  # free, black, white
-    '''
-        active_slots[0] = new
-        Vector. < Slot > (); // free
-        active_slots[1] = new
-        Vector. < Slot > (); // black
-        active_slots[2] = new
-        Vector. < Slot > (); // white
 
-        empty_points = new
-        Vector. < Point > ();
-        all_slots = new
-        Vector. < Slot > ();
+        self.all_points = [Point(self, int(i / 15), i % 15 ) for i in range(0, 225)]
+        self.empty_points = self.all_points[:]
 
-        for (var i: int = 0; i < 225; i + +) {
-            var
-        p:Point = new
-        Point(this, Math.floor(i / 15) - 7, i % 15 - 7);
-        // trace(i, p.x, p.y);
-        all_points[i] = p;
-        empty_points.push(p);
+        for p in self.all_points:
+            for d in range(0, 4):
+                if p.is_valid_scp(d):
+                    s = Slot(self, p, d)
+                    self.all_slots.append(s)
 
-        for (var j: int = 0; j < 4; j + +) {
-        if (p.is_valid_scp(j))
-        {
-            var
-        s: Slot = new
-        Slot(this, p, j);
-        all_slots.push(s);
-        active_slots[0].push(s);
-        }
-        }
-        }
+        self.active_slots[0] = self.all_slots[:]
+        for s in self.all_slots:
+            s.init()
 
-        for each(var item: Slot in all_slots) {
-            item.init();
-        }
-        '''
+    def step(self, x, y, c):
+        p = self.get_point(x, y)
+        p.s = c
+        self.empty_points.remove(p)
+
+        for s in p.slots:
+            if s.s == 0:
+                p.r[0] -= 1
+                p.r[c] += 1
+                s.s = c
+                s.r = 1
+                self.active_slots[0].remove(s)
+                self.active_slots[c].append(s)
+            elif s.s == c:
+                p.r[c] += 1
+                s.r += 1
+            elif s.s != 3:
+                p.r[c] -= 1
+                self.active_slots[s.s].remove(s)
+                s.s = 3
+
+    def get_point(self, x, y):
+        #print (x, y)
+        return self.all_points[x * 15 + y]
+
 
 class Game:
     def __init__(self, app):
@@ -69,9 +141,12 @@ class Game:
         self.mes = ""
 
         self.app = app
-        self.app.status.text = "Press 'New'"
+        self.name_c = ["", "Black", "White"]
 
     def play(self):
+        self.app.desk.draw_init()
+        self.app.desk.draw_grid()
+
         self.is_play = True
         self.is_run = False
         self.is_busy = False
@@ -85,18 +160,211 @@ class Game:
         self.app.action_run.disabled = False
         self.app.action_mode.disabled = True
 
-        self.app.desk.draw_init()
-        self.app.desk.draw_grid()
-
         self.app.net.init()
+
+        self.app.qsteps = 0
+        self.app.add_step(7, 7, 0, "Start")
 
         self.mes = "Start"
         self.n_step = 1
-        self.app.net.step(0, 0, 1)
+        self.app.net.step(7, 7, 1)
         self.app.status.text = "New game"
 
         if self.app.mode() == 1:
             self.run(False)
+
+    def run(self, r):
+        if self.is_play:
+            self.app.status.text = "Thinking..."
+            self.is_busy = True
+            self.is_run = r
+            self.go(True, 0, 0)
+            self.is_busy = False
+
+    def go(self, auto, x, y):
+        ret = 0
+        if auto:
+            ret = self.next_step()
+        else:
+            ret = self.manual_step(x, y)
+
+        self.app.status.text = "Finish! -> {0}".format(self.mes) if ret < 0 else "Step {0} -> {1}".format(ret, self.mes)
+
+        if self.app.mode == 0:
+            self.app.action_back.disabled = False
+
+        if ret < 0 or ret > 224:
+            self.app.action_run.disabled = True
+            self.app.action_step.disabled = True
+            self.app.action_mode.disabled = False
+
+            self.is_run = False
+            self.is_play = False
+
+        elif not auto and self.app.mode() > 0:
+            self.go(True, 7, 7)
+        elif self.is_run:
+            self.go(True, 7, 7)
+
+    def next_step(self):
+        self.n_step += 1
+
+        if self.check_win(3 - (2 - self.n_step % 2)) or self.check_draw():
+            return -1
+        else:
+            p = self.calc_point(2 - self.n_step % 2)
+            self.app.net.step(p.x, p.y, 2 - self.n_step % 2)
+            self.app.add_step(p.x, p.y, 1 - self.n_step % 2, self.mes)
+            return self.n_step
+
+    def manual_step(self, x, y):
+        self.n_step += 1
+        if self.check_win(3 - (2 - self.n_step % 2)) or self.check_draw():
+            return -1
+        else:
+            self.app.net.step(x, y, 2 - self.n_step % 2)
+            self.mes = self.name_c[2 - self.n_step % 2] + " :: manual (" + x + ":" + y + ")"
+            self.app.add_step(x, y, 1 - self.n_step % 2, self.mes)
+            return self.n_step
+
+    def check_win(self, c):
+        for s in self.app.net.active_slots[c]:
+            if s.r == 5:
+                mes = self.name_c[c] + " :: win!!!"
+                return True
+        return False
+
+    def check_draw(self):
+        if len(self.app.net.active_slots[0]) == 0 and \
+                len(self.app.net.active_slots[1]) == 0 and \
+                len(self.app.net.active_slots[2]) == 0:
+            self.mes = " draw :("
+            return True
+        else:
+            return False
+
+    def calc_point(self, c):
+        ret = []
+        self.mes = self.name_c[c] + " :: auto :: "
+
+        ret = self.find_slot_4(c)
+        if len(ret) == 0:
+            ret = self.find_slot_4(3 - c)
+        if len(ret) == 0:
+
+            ret = self.find_point_x(c, 2, 1)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 2, 1)
+        if len(ret) == 0:
+
+            ret = self.find_point_x(c, 1, 5)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 1, 5)
+        if len(ret) == 0:
+
+            ret = self.find_point_x(c, 1, 4)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 1, 4)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 1, 3)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 1, 3)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 1, 2)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 1, 2)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 1, 1)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 1, 1)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 0, 10)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 0, 10)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 0, 9)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 0, 9)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 0, 8)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 0, 8)
+
+        if len(ret) == 0:
+            ret = self.find_point_x(c, 0, 7)
+        if len(ret) == 0:
+            ret = self.find_point_x(3 - c, 0, 7)
+
+        if len(ret) == 0:
+            ret = self.calc_point_max_rate(c)
+
+        #mes = ret[0].m;
+		#return ret[0].p;
+		#i = int(Math.random() * ret.length)
+        o = random.choice(ret)
+        self.mes = o["m"]
+        return o["p"]
+
+    def find_slot_4(self, c):
+        ret = []
+        m = 0
+        for s in self.app.net.active_slots[c]:
+            if s.r == 4:
+                for p in s.points:
+                    if p.s == 0:
+                        m = "{0} {1} :: find_slot_4 -> -> ({2},{3})".format(self.mes, self.name_c[c], p.x, p.y)
+                        ret.append({"p": p, "m": m})
+        return ret
+
+    def find_point_x(self, c, r, b):
+        ret = []
+        m = ""
+        for p in self.app.net.empty_points:
+            i = 0
+            for s in p.slots:
+                if s.s == c and s.r > r:
+                    i += 1
+            if i > b:
+                m = "{0} {1} :: point_max_rate({2},{3}) -> ({4},{5})".format(self.mes, self.name_c[c], r, b, p.x, p.y)
+                ret.append({"p": p, "m": m})
+
+        return ret
+
+    def calc_point_max_rate(self, c):
+        ret = []
+        m = ""
+        r = -1
+        d = 0
+        i = 0
+
+        for p in self.app.net.empty_points:
+            d = 0
+            for s in p.slots:
+                if s.s == 0:
+                    d += 1
+                elif s.s == c:
+                    d += (1 + s.r) * (1 + s.r)
+                elif s.s != 3:
+                    d += (1 + s.r) * (1 + s.r)
+
+            if d > r:
+                i = 1
+                r = d
+                ret = []
+                m = "{0} {1} :: point_max_rate({2},{3}) -> ({4},{5})".format(self.mes, self.name_c[c], i, r, p.x, p.y)
+                ret.append({"p": p, "m": m})
+            elif d == r:
+                i += 1
+                m = "{0} {1} :: point_max_rate({2},{3}) -> ({4},{5})".format(self.mes, self.name_c[c], i, r, p.x, p.y)
+                ret.append({"p": p, "m": m})
+
+        return ret
 
 class Desk(Widget):
     def draw_init(self):
@@ -122,11 +390,17 @@ class Desk(Widget):
         for c in self.cy:
             self.canvas.add(Line(points=[self.pos[0] + self.d, c, self.pos[0] + self.size[0] - self.d, c]))
 
+    def draw_step(self, x, y, c):
+        self.canvas.add(Color(c[0], c[1], c[2]))
+        self.canvas.add(Ellipse(pos = [self.cx[x] - self.d/2, self.cy[y] - self.d/2], size = [self.d, self.d]))
+        self.canvas.add(Color(0., 0., 0.))
+        self.canvas.add(Line(circle = (self.cx[x], self.cy[y], self.d/2)))
 
 
 class Gomoku(App):
 
     def build(self):
+        self.game = Game(self)
         main = GridLayout(cols = 1, rows = 1)
 
         actions = BoxLayout(orientation='horizontal', pos_hint = {'x': 0}, size_hint_x = 1)
@@ -148,9 +422,15 @@ class Gomoku(App):
         drop_mode.add_widget(white_mode)
         drop_mode.add_widget(manual_mode)
 
-        self.action_step = Button(text = "Step", pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None))
+        self.action_step = Button(text = "Step",
+                            pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None),
+                            on_press = lambda x: self.game.run(False))
+
         self.action_back = Button(text = "Back", pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None))
-        self.action_run = Button(text = "Run", pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None))
+
+        self.action_run = Button(text = "Run",
+                            pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None),
+                            on_press=lambda x: self.game.run(True))
         self.action_close = Button(text="Close",
                             pos_hint={'top': 1}, size=(70, 30), size_hint=(None, None),
                             on_press = lambda x: Window.close())
@@ -164,7 +444,7 @@ class Gomoku(App):
 
         self.desk = Desk()
 
-        self.status = Label(text = "Ready", pos_hint = {'bottom': 1}, size = (200, 30), size_hint = (None, None), text_size=(180, None))
+        self.status = Label(text = "Ready", pos_hint = {'bottom': 1}, size = (500, 30), size_hint = (None, None), text_size=(500, None))
 
         vbox = BoxLayout(orientation='vertical', size = main.size, pos_hint = {'x': 0, 'y': 0}, size_hint_x = 1, size_hint_y = 1)
         vbox.add_widget(actions)
@@ -179,7 +459,6 @@ class Gomoku(App):
         self.desk.draw_init()
         self.desk.draw_grid()
 
-        self.game = Game(self)
         self.colors = ([0, 0, 0, 0.5], [1, 1, 1, 0.5])
         self.qsteps = 0
         self.steps = [None] * 225
@@ -188,8 +467,13 @@ class Gomoku(App):
         print self.mode()
 
         self.net = Net()
-
+        self.status.text = "Press 'New'"
         return main
+
+    def add_step(self, x, y, c, mes):
+        self.steps[self.qsteps] = {"x": x, "y": y, "mes": mes}
+        self.qsteps += 1
+        self.desk.draw_step(x, y, self.colors[c])
 
 if __name__ == '__main__':
     Gomoku().run()
