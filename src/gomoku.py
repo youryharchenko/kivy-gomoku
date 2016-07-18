@@ -163,7 +163,7 @@ class Game:
         self.app.net.init()
 
         self.app.qsteps = 0
-        self.app.add_step(7, 7, 0, "Start")
+        self.add_step(7, 7, 0, "Start")
 
         self.mes = "Start"
         self.n_step = 1
@@ -181,6 +181,49 @@ class Game:
             self.go(True, 0, 0)
             self.is_busy = False
 
+    def back(self):
+        self.is_play = True
+        self.is_busy = True
+
+        self.replay(1)
+
+        self.is_busy = False
+
+        self.app.action_run.disabled = False
+        self.app.action_step.disabled = False
+
+    def replay(self, k):
+        n = self.n_step - k
+
+        if n > 0:
+            self.app.net.init()
+            self.app.desk.draw_init()
+            self.app.desk.draw_grid()
+            #self.app.desk_init()
+            self.n_step = 1
+            self.app.net.step(7, 7, 1)
+            self.add_step(7, 7, 0, "")
+            self.is_busy = False
+            self.is_play = True
+            self.is_run = False
+
+            self.app.status.text = "Start"
+
+        if n > 1:
+            for i in range(1, n):
+                st = self.app.steps[i]
+                #self.app.steps[i] = None
+                self.replay_step(st["x"], st["y"], st["mes"])
+
+            self.app.status.text = "Step {0} -> {1}".format(self.n_step, st["mes"])
+
+    def replay_step(self, x, y, mes):
+        self.n_step += 1
+
+        self.app.net.step(x, y, 2 - self.n_step % 2)
+        self.add_step(x, y, 1 - self.n_step % 2, mes)
+        return self.n_step
+
     def go(self, auto, x, y):
         ret = 0
         if auto:
@@ -190,7 +233,7 @@ class Game:
 
         self.app.status.text = "Finish! -> {0}".format(self.mes) if ret < 0 else "Step {0} -> {1}".format(ret, self.mes)
 
-        if self.app.mode == 0:
+        if self.app.mode() == 0:
             self.app.action_back.disabled = False
 
         if ret < 0 or ret > 224:
@@ -214,7 +257,7 @@ class Game:
         else:
             p = self.calc_point(2 - self.n_step % 2)
             self.app.net.step(p.x, p.y, 2 - self.n_step % 2)
-            self.app.add_step(p.x, p.y, 1 - self.n_step % 2, self.mes)
+            self.add_step(p.x, p.y, 1 - self.n_step % 2, self.mes)
             return self.n_step
 
     def manual_step(self, x, y):
@@ -224,7 +267,7 @@ class Game:
         else:
             self.app.net.step(x, y, 2 - self.n_step % 2)
             self.mes = self.name_c[2 - self.n_step % 2] + " :: manual (" + x + ":" + y + ")"
-            self.app.add_step(x, y, 1 - self.n_step % 2, self.mes)
+            self.add_step(x, y, 1 - self.n_step % 2, self.mes)
             return self.n_step
 
     def check_win(self, c):
@@ -366,6 +409,11 @@ class Game:
 
         return ret
 
+    def add_step(self, x, y, c, mes):
+        self.app.steps[self.app.qsteps] = {"x": x, "y": y, "mes": mes}
+        self.app.qsteps += 1
+        self.app.desk.draw_step(x, y, self.app.colors[c])
+
 class Desk(Widget):
     def draw_init(self):
         self.canvas.clear()
@@ -426,7 +474,9 @@ class Gomoku(App):
                             pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None),
                             on_press = lambda x: self.game.run(False))
 
-        self.action_back = Button(text = "Back", pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None))
+        self.action_back = Button(text = "Back",
+                            pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None),
+                            on_press=lambda x: self.game.back())
 
         self.action_run = Button(text = "Run",
                             pos_hint = {'top': 1}, size = (70, 30), size_hint = (None, None),
@@ -470,10 +520,7 @@ class Gomoku(App):
         self.status.text = "Press 'New'"
         return main
 
-    def add_step(self, x, y, c, mes):
-        self.steps[self.qsteps] = {"x": x, "y": y, "mes": mes}
-        self.qsteps += 1
-        self.desk.draw_step(x, y, self.colors[c])
+
 
 if __name__ == '__main__':
     Gomoku().run()
