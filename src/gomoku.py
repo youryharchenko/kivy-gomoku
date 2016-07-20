@@ -202,6 +202,7 @@ class Game:
             #self.app.desk_init()
             self.n_step = 1
             self.app.net.step(7, 7, 1)
+            self.app.qsteps = 0
             self.add_step(7, 7, 0, "")
             self.is_busy = False
             self.is_play = True
@@ -266,7 +267,7 @@ class Game:
             return -1
         else:
             self.app.net.step(x, y, 2 - self.n_step % 2)
-            self.mes = self.name_c[2 - self.n_step % 2] + " :: manual (" + x + ":" + y + ")"
+            self.mes = "{0}  :: manual ({1},{2})".format(self.name_c[2 - self.n_step % 2], x, y )
             self.add_step(x, y, 1 - self.n_step % 2, self.mes)
             return self.n_step
 
@@ -444,6 +445,29 @@ class Desk(Widget):
         self.canvas.add(Color(0., 0., 0.))
         self.canvas.add(Line(circle = (self.cx[x], self.cy[y], self.d/2)))
 
+    def on_touch_up(self, touch):
+        print "Touch Up: {0}, {1}".format(touch.pos[0], touch.pos[1])
+        if self.app.game.is_play and not self.app.game.is_run and not self.app.game.is_busy:
+            x, y = self.get_dc(touch.pos[0], touch.pos[1])
+            if not x is None and not y is None and self.app.net.get_point(x, y).s == 0:
+                print "Manual step: {0}, {1}".format(x, y)
+                self.app.game.go(False, x, y)
+
+    def get_dc(self, px, py):
+        x = None
+        for i in range(0, 15):
+            if px < self.cx[i] + self.d / 2 and px > self.cx[i] - self.d / 2:
+                x = i
+                break
+
+        y = None
+        for j in range(0, 15):
+            if py < self.cy[j] + self.d / 2 and py > self.cy[j] - self.d / 2:
+                y = j
+                break
+
+        return x, y
+
 
 class Gomoku(App):
 
@@ -493,6 +517,7 @@ class Gomoku(App):
         actions.add_widget(self.action_close)
 
         self.desk = Desk()
+        self.desk.app = self
 
         self.status = Label(text = "Ready", pos_hint = {'bottom': 1}, size = (500, 30), size_hint = (None, None), text_size=(500, None))
 
@@ -519,6 +544,9 @@ class Gomoku(App):
         self.net = Net()
         self.status.text = "Press 'New'"
         return main
+
+
+
 
 
 
