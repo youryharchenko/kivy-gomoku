@@ -11,6 +11,7 @@ from kivy.uix.dropdown import DropDown
 from kivy.graphics import Color, Rectangle, Line, Ellipse
 
 from kivy.core.window import Window
+from kivy.core.text import Label as CoreLabel
 
 import random
 
@@ -375,7 +376,7 @@ class Game:
                 if s.s == c and s.r > r:
                     i += 1
             if i > b:
-                m = "{0} {1} :: point_max_rate({2},{3}) -> ({4},{5})".format(self.mes, self.name_c[c], r, b, p.x, p.y)
+                m = "{0} {1} :: find_point_x({2},{3}) -> ({4},{5})".format(self.mes, self.name_c[c], r, b, p.x, p.y)
                 ret.append({"p": p, "m": m})
 
         return ret
@@ -444,6 +445,12 @@ class Desk(Widget):
         self.canvas.add(Ellipse(pos = [self.cx[x] - self.d/2, self.cy[y] - self.d/2], size = [self.d, self.d]))
         self.canvas.add(Color(0., 0., 0.))
         self.canvas.add(Line(circle = (self.cx[x], self.cy[y], self.d/2)))
+
+        label = CoreLabel(text="{0}".format(self.app.qsteps), font_size=14)
+        label.refresh()
+        text = label.texture
+        self.canvas.add(Color(1 - c[0], 1- c[1], 1- c[2]))
+        self.canvas.add(Rectangle(size=text.size, pos = [self.cx[x] - text.size[0]/2, self.cy[y] - text.size[1]/2], texture=text))
 
     def on_touch_up(self, touch):
         print "Touch Up: {0}, {1}".format(touch.pos[0], touch.pos[1])
